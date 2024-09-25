@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="GenericProject" default="setup" basedir=".">
+    
+    <!-- Propiedades -->
+    <property name="project.name" value="examenTest"/>
+    <!-- Actualizar main.class para que use el nombre del proyecto -->
+    <property name="main.class" value="${project.name}.${project.name}"/>
+    <property name="src.dir" value="src"/>
+    <property name="build.dir" value="build/classes"/>
+    <property name="dist.dir" value="dist"/>
+    <property name="lib.dir" value="lib"/>
+    <property name="resources.dir" value="resources"/>
+    <!-- Actualizar main.java para que use el nombre del proyecto -->
+    <property name="main.java" value="${src.dir}/${project.name}/${project.name}.java"/>
+    <property name="dist.jar" value="${dist.dir}/${project.name}.jar"/>
+    <property name="dist.lib.dir" value="${dist.dir}/lib"/>
+    
+    <!-- Tarea por defecto -->
+    <target name="default" depends="setup"/>
+    
+    <!-- Tarea para crear la estructura del proyecto -->
+    <target name="setup">
+        <!-- Crear directorios necesarios -->
+        <mkdir dir="${src.dir}/${project.name}"/>
+        <mkdir dir="${build.dir}"/>
+        <mkdir dir="${dist.dir}"/>
+        <mkdir dir="${lib.dir}"/>
+        <mkdir dir="${resources.dir}"/>
+        <mkdir dir="${dist.lib.dir}"/>
+        
+        <!-- Verificar si la clase principal ya existe -->
+        <available file="${main.java}" property="main.exists"/>
+        
+        <!-- Definir propiedad para crear la clase principal si no existe -->
+        <condition property="create.main">
+            <not>
+                <isset property="main.exists"/>
+            </not>
+        </condition>
+        
+        <!-- Llamar al target para crear la clase principal si es necesario -->
+        <antcall target="create-main"/>
+        
+        <!-- Copiar librerías a dist/lib -->
+        <antcall target="copy-libs"/>
+        
+        <echo message="Estructura del proyecto creada exitosamente."/>
+    </target>
+    
+    <!-- Tarea para crear la clase principal -->
+    <target name="create-main" if="create.main">
+        <echo file="${main.java}" append="false" encoding="UTF-8">
+<![CDATA[
+package ${project.name};
+
+public class ${project.name} {
+    public static void main(String[] args) {
+        System.out.println("¡Hola, mundo!");
+    }
+}
+]]>
+        </echo>
+        <!-- Actualizar el mensaje para reflejar el nuevo nombre del archivo -->
+        <echo message="Clase principal '${project.name}.java' creada."/>
+    </target>
+    
+    <!-- Tarea para copiar las librerías al directorio dist/lib -->
+    <target name="copy-libs">
+        <copy todir="${dist.lib.dir}">
+            <fileset dir="${lib.dir}" includes="**/*.jar"/>
+        </copy>
+        <echo message="Librerías copiadas a '${dist.lib.dir}'."/>
+    </target>
+    
+    <!-- Tarea para compilar el proyecto -->
+    <target name="compile" depends="setup">
+        <mkdir dir="${build.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false" verbose="true">
+            <classpath>
+                <fileset dir="${lib.dir}" includes="**/*.jar"/>
+            </classpath>
+        </javac>
+        <echo message="Compilación completada."/>
+    </target>
+    
+    <!-- Tarea para generar el Class-Path en el manifiesto -->
+    <target name="generate-manifest-classpath" depends="copy-libs">
+        <!-- Definir una ruta que incluye todas las librerías en dist/lib -->
+        <path id="classpath.path">
+            <fileset dir="${dist.lib.dir}" includes="**/*.jar"/>
+        </path>
+        
+        <!-- Convertir la ruta a una propiedad separada por espacios con rutas relativas -->
+        <pathconvert property="manifest.classpath" pathsep=" ">
+            <path refid="classpath.path"/>
+            <mapper type="glob" from="*.jar" to="lib/*.jar"/>
+        </pathconvert>
+        
+        <echo message="Class-Path para el manifiesto: ${manifest.classpath}"/>
+    </target>
+    
+    <!-- Tarea para empaquetar el proyecto en un JAR -->
+    <target name="jar" depends="compile, generate-manifest-classpath">
+        <mkdir dir="${dist.dir}"/>
+        <jar destfile="${dist.jar}" basedir="${build.dir}">
+            <manifest>
+                <attribute name="Main-Class" value="${main.class}"/>
+                <attribute name="Class-Path" value="${manifest.classpath}"/>
+            </manifest>
+        </jar>
+        <echo message="JAR empaquetado en '${dist.jar}' con Class-Path configurado."/>
+    </target>
+    
+    <!-- Tarea para limpiar el proyecto -->
+    <target name="clean">
+        <delete dir="${build.dir}"/>
+        <delete dir="${dist.dir}"/>
+        <echo message="Directorios 'build' y 'dist' eliminados."/>
+    </target>
+    
+    <!-- Tarea para ejecutar el proyecto -->
+    <target name="run" depends="jar">
+        <java jar="${dist.jar}" fork="true" failonerror="true"/>
+    </target>
+    
+</project>
